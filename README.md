@@ -4,8 +4,11 @@ C++ program that connects to oracle to use SQL to retrieve data.
 
 The following relations keep track of airline flight information: 
 •	Flights(flno: integer, from: string, to: string, distance: integer, departs: time, arrives: time, price: real)
+
 •	Aircraft(aid: integer, aname: string, cruisingrange: integer)
+
 •	Certified(eid: integer, aid: integer)
+
 •	Employees(eid: integer, ename: string, salary: integer)
 
 Write an Oracle bgunix C++ program to query these tables. Use C++ classes (not plain old c) with many member functions - modify my sample program as needed. The “X’s” noted below are terminal inputs, given trough cin (terminal input). 
