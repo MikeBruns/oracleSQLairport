@@ -1,0 +1,311 @@
+/** 	Created by Michael Bruns
+	C++ program to run queries 
+	
+	Setup:
+	1.) Load data into tables using sql loader files
+	2.) Enter your oracle username and pass in 					connectToDatabase() 
+	
+	How to Run:
+	$ oracleCC hw4prog
+	$ hw4prog
+
+*/
+
+
+#include <iomanip.h>
+#include <iostream.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <iostream>
+
+using namespace std;
+
+// Parse=partial by default when code=cpp so, preprocessor directives are
+// recognized and parsed fully.
+#define     UNAME_LEN      20
+#define     PWD_LEN        40
+
+// Declare section is required when CODE=CPP and/or PARSE={PARTIAL|NONE}
+exec sql begin declare section;
+  VARCHAR username[UNAME_LEN];  		// VARCHAR is an ORACLE supplied struct
+										// Has actual data & length
+  varchar password[PWD_LEN];    // varchar can be in lower case also  
+  varchar sql_statement[1000];	//holds the sql stat being constructed..
+  int supplierNo;
+
+  char    inputSupplierName[50];   	//entered using cin
+  varchar outputBuf[1000];	//retrieved output from database
+  varchar outputBuf2[1000];
+
+exec sql end declare section;
+
+// Declare error handling function
+void sql_error(char *msg);    
+void connectToDatabase();
+void commitAndExit() ;
+void prepareAndExecuteIt ();
+void  prepareAndExecuteMult();
+void aircraftNamesSQL();
+void maxRangePerCraftSQL(string);
+void craftsForRoutesSQL(string, string);
+exec sql include sqlca;
+
+
+main()
+{
+
+//  Call sql_error() function on any error in an embedded SQL statement
+    exec sql WHENEVER SQLERROR DO sql_error("Oracle error");
+
+
+    exec sql 
+	WHENEVER SQLERROR 
+        DO sql_error("ORACLE error:"); 
+    	connectToDatabase();
+
+	int choice;
+	string numCrafts;
+	string fromDest;
+	string toDest;
+	
+	cout << "   ***************  Query Options  *************** \n";
+	cout << "1) Find the names of aircraft such that all pilots\n";
+	cout << "    certified to operate them have salaries over $80,000 \n";
+	cout << "2) For each pilot who is certified for more than X1\n";
+	cout << "    aircrafts, find the eid and the maximum cruisingrange of the\n";
+	cout << "    aircraft for which she or he is certified \n";
+	cout << "3) Find the aids of all aircraft that can be used on routes from X3 to X4 \n";
+	cout << "4) EXIT \n";
+	cout << "Enter a number for the query you wish to see: ";
+	cin >> choice;
+	cout << "\n";
+	
+	
+	switch(choice)
+	{
+		case 1: 
+		{		aircraftNamesSQL();
+				prepareAndExecuteIt ();
+		}
+				break;
+		case 2:
+		{		cout << "Enter number of aircrafts 'X1': ";
+				cin >> numCrafts;
+				
+				cout << "\n";
+				maxRangePerCraftSQL(numCrafts);
+				prepareAndExecuteMult ();
+
+		}
+				break;
+		case 3:
+		{		getline(cin, fromDest);
+				cout << "Enter your from destination: ";
+				getline(cin, fromDest);
+				cout <<  "Enter your to destination: ";
+				getline(cin, toDest);
+				cout << "\n";
+				craftsForRoutesSQL(fromDest, toDest);
+				prepareAndExecuteIt ();
+
+		}
+				break;
+		case 4: 	exit(0);
+				break;
+		default:
+		{		cout << "Please enter a valid number: ";
+				cin >> choice;
+		}
+				break;
+	}
+
+
+
+    commitAndExit();
+	
+
+}
+
+void connectToDatabase() {
+
+/*  Hardcoded username and password  */
+    strcpy((char *)username.arr,"sp201648@cs11g");
+    strcpy((char *)password.arr,"*******");
+    username.len = strlen((char *) username.arr);
+    password.len = strlen((char *) password.arr);
+
+//  CONNECTS TO DATABASE 
+    exec sql CONNECT :username IDENTIFIED BY :password;
+    cout << "\nConnected to ORACLE as user: "
+                << (char *)username.arr << endl << endl; 
+
+}
+
+
+void commitAndExit() {
+
+    exec sql commit work release;
+    exit(0);  
+}
+void sql_error(char *msg)
+{
+    exec sql WHENEVER SQLERROR CONTINUE;
+    cout << endl << msg << endl;
+    cout << sqlca.sqlerrm.sqlerrmc << endl;
+    exec sql rollback release;
+    exit(1);
+}      
+
+
+/**
+Find the names of aircraft such that all pilots certified 
+to operate them have salaries over $80,000
+*/
+void aircraftNamesSQL() {
+	strcpy((char *)sql_statement.arr,"SELECT DISTINCT A.aname ");
+    	strcat((char *)sql_statement.arr,"FROM Aircraft A ");
+    	strcat((char *)sql_statement.arr,"WHERE A.aid IN (SELECT C.aid ");
+	strcat((char *)sql_statement.arr,"FROM Certified C, Employees E ");
+    	strcat((char *)sql_statement.arr,"WHERE C.eid = E.eid AND ");
+    	strcat((char *)sql_statement.arr,"NOT EXISTS (SELECT * ");
+	strcat((char *)sql_statement.arr,"FROM Employees E1 ");
+    	strcat((char *)sql_statement.arr,"WHERE E1.eid = E.eid ");
+    	strcat((char *)sql_statement.arr,"AND E1.salary < 80000))");
+
+	 cout << "Query is:  " << (char *) sql_statement.arr << endl;
+
+}
+
+/**
+For each pilot who is certified for more than X1 aircrafts,
+find the eid and the maximum cruisingrange of the aircraft 
+for which she or he is certified.
+*/
+void maxRangePerCraftSQL(string numCrafts){
+	strcpy((char *)sql_statement.arr,"SELECT C.eid, MAX (A.cruisingrange) ");
+    	strcat((char *)sql_statement.arr,"FROM Certified C, Aircraft A ");
+    	strcat((char *)sql_statement.arr,"WHERE C.aid = A.aid ");
+	strcat((char *)sql_statement.arr,"GROUP BY C.eid ");
+	strcat((char *)sql_statement.arr,"HAVING COUNT(*) > ");
+	strcat((char *)sql_statement.arr,numCrafts.c_str());
+
+	cout << "Query is:  " << (char *) sql_statement.arr << endl;
+	
+}
+
+/**
+Find the aids of all aircraft that can be used 
+on routes from X3 to X4.
+*/
+void craftsForRoutesSQL(string fromDest, string toDest){
+	strcpy((char *)sql_statement.arr,"SELECT DISTINCT A.aid ");
+    	strcat((char *)sql_statement.arr,"FROM Aircraft A ");
+    	strcat((char *)sql_statement.arr,"WHERE A.cruisingrange > ");
+	strcat((char *)sql_statement.arr,"(SELECT MIN(F.distance) ");
+    	strcat((char *)sql_statement.arr,"FROM flights F ");
+    	strcat((char *)sql_statement.arr,"WHERE F.toDest = '");
+	strcat((char *)sql_statement.arr,toDest.c_str());
+	strcat((char *)sql_statement.arr,"' AND F.fromDest = '");
+	strcat((char *)sql_statement.arr,fromDest.c_str());
+	strcat((char *)sql_statement.arr,"')");
+	//strcat((char *)sql_statement.arr,")");
+
+	cout << "Query is:  " << (char *) sql_statement.arr << endl;
+	
+}
+
+
+
+
+
+void  prepareAndExecuteIt() {
+
+//  Prepare the query; define a cursor, execute it...
+
+    sql_statement.len = strlen((char *) sql_statement.arr);
+    exec sql PREPARE S1 FROM :sql_statement;
+
+/* The declare statement associates a cursor with a
+ * PREPAREd statement.  The cursor name, like the statement
+ * name, does not appear in the Declare Section.
+ * A single cursor name can not be declared more than once.
+
+*/
+
+    exec sql declare C1 cursor FOR S1;
+
+
+    exec sql open C1;
+    cout << "***************************************" << endl;
+    cout << "Results from Querry" << endl;
+    cout << "***************************************" << endl;
+
+    while(sqlca.sqlcode == 0){
+
+    exec sql FETCH C1 INTO :outputBuf;
+
+      if ( sqlca.sqlcode !=  0) { // out of data
+	cout << "***********************************" << endl;
+        cout << "End of Table" <<endl;
+	cout << "***********************************" << endl;
+        exec sql rollback release;
+        exit(1);
+       }
+
+       cout << (char *)outputBuf.arr << endl;
+ 
+    }
+
+     exec sql close C1;
+
+}
+
+void  prepareAndExecuteMult() {
+
+//  Prepare the query; define a cursor, execute it...
+
+    sql_statement.len = strlen((char *) sql_statement.arr);
+    exec sql PREPARE S1 FROM :sql_statement;
+
+/* The declare statement associates a cursor with a
+ * PREPAREd statement.  The cursor name, like the statement
+ * name, does not appear in the Declare Section.
+ * A single cursor name can not be declared more than once.
+
+*/
+
+    exec sql declare C1 cursor FOR S1;
+
+
+    exec sql open C1;
+    cout << "***************************************" << endl;
+    cout << "Results from Querry" << endl;
+    cout << "***************************************" << endl;
+
+    while(sqlca.sqlcode == 0){
+
+      exec sql FETCH C1 INTO :outputBuf, :outputBuf2;
+
+
+      if ( sqlca.sqlcode !=  0) { // out of data
+	cout << "***********************************" << endl;
+        cout << "End of Table" <<endl;
+	cout << "***********************************" << endl;
+        exec sql rollback release;
+        exit(1);
+       }
+
+       cout << (char *)outputBuf.arr << setw(15) << (char *)outputBuf2.arr <<  endl;
+ 
+    }
+
+     exec sql close C1;
+
+}
+
+
+
+
+

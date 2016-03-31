@@ -1,0 +1,5 @@
+load data
+  infile './employees.txt' append
+  into table Employees
+  fields terminated by "," optionally enclosed by '"'
+  (eid, ename, salary)

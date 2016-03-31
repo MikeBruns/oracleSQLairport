@@ -1,0 +1,5 @@
+load data
+  infile './certified.txt' append
+  into table Certified
+  fields terminated by "," optionally enclosed by '"'
+  (eid, aid)

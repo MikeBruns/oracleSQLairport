@@ -1,0 +1,5 @@
+load data
+  infile './aircraft.txt'
+  into table Aircraft
+  fields terminated by "," optionally enclosed by '"'
+  (aid, aname, cruisingrange)

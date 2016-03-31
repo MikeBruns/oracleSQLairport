@@ -1,6 +1,9 @@
-# oracleSQLairportProg
+﻿# oracleSQLairportProg
 
 C++ program that connects to oracle to use SQL to retrieve data.
+
+Also includes all the data files and sql loader scripts to load data into sql.
+
 
 The following relations keep track of airline flight information: 
 

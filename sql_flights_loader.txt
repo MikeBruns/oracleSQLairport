@@ -1,0 +1,5 @@
+load data
+  infile './flights.txt' append
+  into table Flights
+  fields terminated by "," optionally enclosed by '"'
+  (flno, fromDest, toDest, distance, departs date 'yyyy/mm/dd HH24:MI',arrives date 'yyyy/mm/dd HH24:MI', price)
